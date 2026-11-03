@@ -1,6 +1,6 @@
 {
   "name": "clip-harbor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Windows clipboard link organizer and LAN file transfer",
   "main": "src/main.js",
   "author": "mrsai",
@@ -11,15 +11,39 @@
     "build:win": "electron-builder --win --x64",
     "build:mac": "electron-builder --mac dir"
   },
-  "dependencies": { "busboy": "^1.6.0", "qrcode": "^1.5.4" },
-  "devDependencies": { "electron": "45.2.1", "electron-builder": "^26.0.0" },
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "^26.0.0"
+  },
   "build": {
     "appId": "com.mrsai.clipharbor",
     "productName": "ClipHarbor",
-    "files": ["src/**/*", "package.json"],
-    "directories": { "output": "dist" },
-    "win": { "target": ["nsis", "zip"], "signAndEditExecutable": false },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "ClipHarbor-Setup-${version}.${ext}" },
-    "mac": { "identity": null, "category": "public.app-category.utilities" }
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "ClipHarbor-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "identity": null,
+      "category": "public.app-category.utilities"
+    }
   }
 }

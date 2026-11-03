@@ -34,7 +34,7 @@ class TransferServer {
     this.onChange();
   }
   async upload(req) {
-    const parser = Busboy({ headers: req.headers, defParamCharset: 'utf8', limits: { files: 20, fileSize: MAX_FILE, fields: 0, parts: 20 } });
+    const parser = Busboy({ headers: req.headers, defParamCharset: 'utf8', limits: { files: 20, fileSize: MAX_FILE, fields: 0, parts: 21 } });
     const pending = [], staged = [];
     let invalid = false;
     parser.on('filesLimit', () => { invalid = true; });
