@@ -2,38 +2,31 @@ const { app, BrowserWindow, ipcMain, clipboard, dialog } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const QRCode = require('qrcode');
-const { createState, addLinks, findGroup, allLinks, validateSettings } = require('./groups');
+const { createState, addLinks, findGroup, allLinks, validateSettings, splitGroup, parseLinks } = require('./groups');
+const { ClipboardMonitor } = require('./monitor');
 const { TransferServer } = require('./server');
 app.setName('ClipHarbor');
 
-let win, state, stateFile, transfer, timer, lastClipboard = '', clipboardBusy = false, clipboardRevision = 0;
+let win, state, stateFile, transfer, monitor, monitorError = '', lastCapture = null;
 function save() {
   fs.writeFileSync(`${stateFile}.tmp`, JSON.stringify(state), 'utf8');
   fs.renameSync(`${stateFile}.tmp`, stateFile);
 }
-function notify() { if (win && !win.isDestroyed()) win.webContents.send('changed'); }
-async function copy(text) { clipboardRevision++; lastClipboard = text; await clipboard.writeText(text); }
+function notify(selectedId) { if (win && !win.isDestroyed()) win.webContents.send('changed', { selectedId }); }
+async function copy(text) { monitor.ignore(text); await clipboard.writeText(text); }
 function importText(text, source, name) {
-  const id = addLinks(state, text, source, name);
-  if (id) { save(); notify(); }
-  return id;
+  const count = parseLinks(text).length;
+  if (!count) return null;
+  const previous = structuredClone(state.groups);
+  try {
+    const id = addLinks(state, text, source, name);
+    save(); lastCapture = { count, time: Date.now() }; notify(id);
+    return id;
+  } catch (error) { state.groups = previous; throw error; }
 }
 async function setMonitor(enabled) {
-  clearInterval(timer); timer = null;
-  if (enabled) {
-    lastClipboard = ''; // Capture the current clipboard once on explicit activation.
-    timer = setInterval(async () => {
-      if (clipboardBusy) return;
-      clipboardBusy = true;
-      try {
-        const revision = clipboardRevision;
-        const text = await clipboard.readText();
-        if (revision !== clipboardRevision || !timer) return;
-        if (text !== lastClipboard) { lastClipboard = text; importText(text, 'clipboard'); }
-      } catch (e) { win?.webContents.send('app-error', e.message); }
-      finally { clipboardBusy = false; }
-    }, 600);
-  }
+  monitorError = '';
+  if (enabled) monitor.start(); else monitor.stop();
   notify();
 }
 function decodeText(buffer) {
@@ -43,12 +36,13 @@ function decodeText(buffer) {
   catch { return new TextDecoder('gb18030').decode(buffer); }
 }
 const actions = {
-  state: () => ({ ...state, monitoring: !!timer, transfers: transfer.list() }),
+  state: () => ({ ...state, monitoring: monitor.running, monitorError, lastCapture, stateFile, transfers: transfer.list() }),
   monitor: enabled => setMonitor(!!enabled),
-  settings: settings => { state.settings = validateSettings(settings); save(); },
+  settings: settings => { state.settings = validateSettings(settings); splitGroup(state.groups[0], state.settings.m); save(); notify(); },
+  storage: () => require('electron').shell.showItemInFolder(stateFile),
   paste: async () => importText(await clipboard.readText(), 'clipboard'),
   import: async () => {
-    const result = await dialog.showOpenDialog(win, { title: '导入链接文本文件', properties: ['openFile', 'multiSelections'], filters: [{ name: '文本文件', extensions: ['txt', 'log', 'csv'] }, { name: '所有文件', extensions: ['*'] }] });
+    const result = await dialog.showOpenDialog(win, { title: '导入链接文本文件', properties: ['openFile', 'multiSelections'], filters: [{ name: '文本文件', extensions: ['txt', 'md', 'markdown', 'log', 'csv', 'tsv', 'text'] }, { name: '所有文件', extensions: ['*'] }] });
     let id = null;
     for (const file of result.filePaths) {
       if (fs.statSync(file).size > 20 * 1024 ** 2) throw new Error('链接文本文件不能超过 20 MB');
@@ -63,12 +57,33 @@ const actions = {
     findGroup(state, id).name = name.trim(); save(); notify();
   },
   remove: id => {
-    if (id === 'common') state.groups[0].links = [];
+    if (id === 'common') { state.groups[0].links = []; state.groups[0].children = []; }
     else {
       state.groups = state.groups.filter(g => g.id !== id);
       state.groups.forEach(g => { g.children = g.children.filter(c => c.id !== id); });
     }
     save(); notify();
+  },
+  clearAll: async () => {
+    const answer = await dialog.showMessageBox(win, { type: 'warning', title: '清空全部数据', message: '确定清空全部数据？', detail: '删除全部收藏、区域、互传记录和应用接收的文件。保留 n/m 设置；不删除你原先分享的源文件。此操作不可撤销。', buttons: ['取消', '清空全部'], defaultId: 0, cancelId: 0, noLink: true });
+    if (answer.response !== 1) return false;
+    const wasRunning = monitor.running;
+    monitor.stop();
+    try {
+      await transfer.stop();
+      fs.rmSync(transfer.directory, { recursive: true, force: true });
+      fs.mkdirSync(transfer.directory, { recursive: true });
+      transfer.items = [];
+      state.groups = createState().groups; lastCapture = null; save();
+      // Continue watching, but don't collect the unchanged clipboard again after clearing.
+      if (wasRunning) { monitor.last = await clipboard.readText(); monitor.running = true; monitor.check(monitor.session); }
+      notify(); return true;
+    } catch (error) { if (wasRunning) monitor.start(); throw error; }
+  },
+  linkQR: async text => {
+    if (typeof text !== 'string' || !parseLinks(text).includes(text)) throw new Error('请选择有效链接');
+    try { return await QRCode.toDataURL(text, { width: 320, margin: 2 }); }
+    catch { throw new Error('链接过长，无法生成二维码，请复制或通过局域网发送'); }
   },
   lan: async enabled => { if (enabled) await transfer.start(); else await transfer.stop(); notify(); return actions.connection(); },
   connection: async () => {
@@ -106,8 +121,16 @@ else {
       }
     }
     transfer = new TransferServer(path.join(app.getPath('userData'), 'received'), notify);
+    monitor = new ClipboardMonitor(() => clipboard.readText(), text => {
+      const hadError = !!monitorError; monitorError = '';
+      const id = importText(text, 'clipboard');
+      if (hadError && !id) notify();
+      return id;
+    }, error => { monitorError = error.message; notify(); });
+    splitGroup(state.groups[0], state.settings.m);
+    save();
     win = new BrowserWindow({ width: 1200, height: 820, minWidth: 900, minHeight: 620, backgroundColor: '#f6f7f9', autoHideMenuBar: true,
-      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', event => event.preventDefault());
     win.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
@@ -119,5 +142,5 @@ else {
     win.loadFile(path.join(__dirname, 'ui', 'index.html'));
   });
   app.on('window-all-closed', () => app.quit());
-  app.on('before-quit', () => { clearInterval(timer); transfer?.stop(); });
+  app.on('before-quit', () => { monitor?.stop(); transfer?.stop(); });
 }

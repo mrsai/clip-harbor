@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { createState, addLinks, parseLinks, findGroup, allLinks, validateSettings } = require('../src/groups');
+const { createState, addLinks, parseLinks, findGroup, allLinks, validateSettings, splitGroup } = require('../src/groups');
 const magnet = i => `magnet:?xt=urn:btih:${String(i).padStart(40, '0')}&dn=File${i}`;
 const input = count => Array.from({ length: count }, (_, i) => magnet(i)).join('\r\n');
 test('newline variants and mixed invalid text preserve valid link order', () => {
@@ -25,4 +25,20 @@ test('file import always creates a named region and invalid input creates nothin
 });
 test('settings reject impossible limits', () => {
   for (const settings of [{ n: 0, m: 5 }, { n: 6, m: 5 }, { n: 1.5, m: 50 }, { n: 1, m: 10001 }]) assert.throws(() => validateSettings(settings));
+});
+test('Markdown, bullet lists, angle links and inline code import clean URLs', () => {
+  const ed2k = 'ed2k://|file|测试.zip|100|0123456789abcdef0123456789abcdef|/';
+  assert.deepEqual(parseLinks(`# 下载\n- [one](${magnet(1)})\n<${magnet(2)}>\n\`${ed2k}\`\n普通内容`), [magnet(1), magnet(2), ed2k]);
+});
+test('common accumulates into m-sized groups, preserving child names and ids as more links arrive', () => {
+  const state = createState(); state.settings = { n: 3, m: 5 };
+  for (let i = 0; i < 6; i++) addLinks(state, magnet(i));
+  const common = state.groups[0];
+  assert.deepEqual(common.children.map(c => c.links.length), [5, 1]);
+  const first = common.children[0]; first.name = 'edited';
+  for (let i = 6; i < 12; i++) addLinks(state, magnet(i));
+  assert.deepEqual(common.children.map(c => c.links.length), [5, 5, 2]);
+  assert.equal(common.children[0].id, first.id); assert.equal(common.children[0].name, 'edited');
+  assert.deepEqual(allLinks(common), Array.from({ length: 12 }, (_, i) => magnet(i)));
+  splitGroup(common, 3); assert.deepEqual(common.children.map(c => c.links.length), [3, 3, 3, 3]);
 });

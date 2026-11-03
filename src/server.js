@@ -18,7 +18,7 @@ async function readText(req) {
 }
 class TransferServer {
   constructor(directory, onChange = () => {}) {
-    this.directory = directory; this.onChange = onChange; this.items = [];
+    this.directory = directory; this.onChange = onChange; this.items = []; this.uploads = new Set();
     fs.mkdirSync(directory, { recursive: true });
   }
   list() { return this.items.map(({ diskPath, ...item }) => item); }
@@ -81,7 +81,11 @@ class TransferServer {
         }
         if (route === 'api/items' && req.method === 'GET') return send(200, this.list());
         if (route === 'api/text' && req.method === 'POST') { this.addText(await readText(req), '手机'); return send(201, { ok: true }); }
-        if (route === 'api/upload' && req.method === 'POST') { await this.upload(req); return send(201, { ok: true }); }
+        if (route === 'api/upload' && req.method === 'POST') {
+          const uploading = this.upload(req); this.uploads.add(uploading);
+          try { await uploading; return send(201, { ok: true }); }
+          finally { this.uploads.delete(uploading); }
+        }
         if (route.startsWith('download/') && req.method === 'GET') {
           const item = this.items.find(i => i.id === route.slice(9) && i.type === 'file');
           if (!item) return send(404, { error: '文件不存在' });
@@ -115,6 +119,7 @@ class TransferServer {
     const closed = new Promise(resolve => server.close(resolve));
     server.closeAllConnections();
     await closed;
+    await Promise.allSettled([...this.uploads]);
   }
 }
 module.exports = { TransferServer };

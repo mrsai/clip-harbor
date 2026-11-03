@@ -1,31 +1,29 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"><title>ClipHarbor · 链接港湾</title><link rel="stylesheet" href="style.css"></head>
+<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'"><title>ClipHarbor</title><link rel="stylesheet" href="style.css"></head>
 <body class="desktop">
 <aside class="sidebar">
-  <div class="brand"><span class="logo">⌘</span><div>ClipHarbor<small>每一次复制，都有归处</small></div></div>
-  <div class="eyebrow">工作空间</div>
-  <button class="nav active" id="links-tab">▤　链接收藏 <span id="total">0</span></button>
-  <button class="nav" id="lan-tab">⇄　局域网互传</button>
-  <div class="side-heading"><span class="eyebrow">我的区域</span><button id="import-side" title="导入文本文件" aria-label="导入文本文件">＋</button></div>
-  <div id="groups" class="group-tree"></div>
-  <div class="side-bottom"><span class="status-dot"></span>本地保存 · 无需云端<small>CLIP HARBOR / 1.0</small></div>
+ <div class="brand">ClipHarbor</div>
+ <button class="nav active" id="links-tab">收藏 <span id="total">0</span></button>
+ <button class="nav" id="lan-tab">局域网互传</button>
+ <div class="side-heading">区域 <button id="import-side" title="导入文本文件" aria-label="导入文本文件">＋</button></div>
+ <div id="groups" class="group-tree"></div>
+ <button id="clear-all" class="danger">清空全部数据</button>
 </aside>
 <main>
- <header><span id="breadcrumb">工作空间 / 链接收藏</span><span class="local-badge">●　LOCAL FIRST</span></header>
  <section id="links-view">
-  <div class="page-title"><div><div class="eyebrow">YOUR PERSONAL LINK LIBRARY</div><h1>链接收藏<span class="accent">.</span></h1><p>捕获零散的灵感，整理成有序的收藏。</p></div><button class="primary" id="monitor">● 开启监听</button></div>
-  <div class="capture-bar"><div><span class="capture-icon">⌁</span><strong id="monitor-label">剪贴板监听已暂停</strong><small>自动识别 Magnet / ed2k，按换行拆分</small></div><button id="paste">收集当前剪贴板</button><button id="import">↥ 导入文件</button></div>
-  <form id="settings" class="settings"><span>自动分组</span><label>常用阈值 n <input id="n" aria-label="常用阈值 n" type="number" min="1" max="10000" required value="5"></label><label>每组上限 m <input id="m" aria-label="每组上限 m" type="number" min="1" max="10000" required value="50"></label><button type="submit">保存规则</button><small>少于 n 条归入常用；超过 m 条拆分</small></form>
-  <div class="section-toolbar"><div><h2 id="group-title">常用</h2><span id="group-count" class="muted"></span></div><div><button id="rename">重命名</button><button id="share-group">发送到手机</button><button id="remove" class="danger">清空</button><button id="copy-group" class="dark">⧉ 一键复制</button></div></div>
+  <div class="page-title"><h1>收藏</h1><div class="actions"><span id="monitor-label" class="muted">监听已暂停</span><button class="primary" id="monitor">开启监听</button><button id="import">导入文本</button></div></div>
+  <form id="settings" class="settings"><label>常用阈值 n <input id="n" aria-label="常用阈值 n" type="number" min="1" max="10000" required value="5"></label><label>每组上限 m <input id="m" aria-label="每组上限 m" type="number" min="1" max="10000" required value="50"></label><button type="submit">保存规则</button><span class="muted">少于 n 条进入常用；超过 m 条分组</span></form>
+  <div class="section-toolbar"><div><input id="group-title" class="title-input" aria-label="当前区域名称" maxlength="100"><span id="group-count" class="muted"></span></div><div><button id="share-group">发送到手机</button><button id="remove" class="danger">清空区域</button><button id="copy-group" class="dark">复制区域</button></div></div>
   <div id="content"></div>
  </section>
  <section id="lan-view" hidden>
-  <div class="page-title"><div><div class="eyebrow">ACROSS YOUR DEVICES</div><h1>让文件，靠岸<span class="accent">.</span></h1><p>手机与电脑在同一 Wi-Fi 下，即可互传文件和文字。</p></div><button id="lan-toggle" class="primary">启动互传服务</button></div>
-  <div class="connection-panel"><div><h2 id="lan-status">连接你的另一台设备</h2><p>启动服务后，用手机扫描二维码，无需安装应用。</p><p class="muted">仅分享你主动添加的内容。停止服务后二维码立即失效。</p><div id="addresses"></div></div><img id="qr" alt="手机扫码连接二维码" hidden><div id="qr-empty">⇄</div></div>
-  <div class="transfer-compose"><h2>发送到手机</h2><label for="share-text" class="muted">文字、链接或一段备忘</label><textarea id="share-text" placeholder="在这里输入文字…" maxlength="1000000"></textarea><div><span class="muted">文件通过本地 HTTP 传输</span><button id="share-files">＋ 添加文件</button><button id="send-text" class="dark">发送文字 ↗</button></div></div>
-  <div class="section-toolbar"><h2>传输记录</h2><span class="muted">手机收到文件后点击下载 · 电脑收到文件后另存为</span></div><div id="transfers"></div>
+  <div class="page-title"><h1>局域网互传</h1><button id="lan-toggle" class="primary">启动服务</button></div>
+  <div class="connection-panel"><div><h2 id="lan-status">服务未启动</h2><p>手机连接同一 Wi-Fi，扫码访问。</p><div id="addresses"></div></div><img id="qr" alt="手机扫码连接二维码" hidden></div>
+  <div class="transfer-compose"><h2>发送内容</h2><label for="share-text" class="muted">文字或链接</label><textarea id="share-text" placeholder="输入要发送的内容" maxlength="1000000"></textarea><div><button id="share-files">添加文件</button><button id="send-text" class="dark">发送文字</button></div></div>
+  <div class="section-toolbar"><h2>传输记录</h2></div><div id="transfers"></div>
  </section>
+ <footer class="storage"><span>本地文件：</span><code id="storage-path"></code><button id="open-storage">打开位置</button></footer>
 </main>
-<dialog id="rename-dialog"><form method="dialog" id="rename-form"><h2>给区域起个名字</h2><input id="rename-input" aria-label="区域名称" maxlength="100" required><div class="dialog-actions"><button value="cancel" formnovalidate>取消</button><button value="save" class="primary">保存名称</button></div></form></dialog>
-<dialog id="delete-dialog"><form method="dialog"><h2>移除区域内容？</h2><p>此操作会删除所选区域中的链接。</p><div class="dialog-actions"><button value="cancel">取消</button><button value="remove" class="danger">确认移除</button></div></form></dialog>
+<dialog id="delete-dialog"><form method="dialog"><h2>移除区域内容？</h2><p>删除所选区域及其中的链接，此操作不可撤销。</p><div class="dialog-actions"><button value="cancel">取消</button><button value="remove" class="danger">确认移除</button></div></form></dialog>
+<dialog id="link-qr-dialog"><form method="dialog"><div class="section-toolbar"><h2>链接二维码</h2><button>关闭</button></div><img id="link-qr" alt="链接二维码"><textarea id="qr-link-text" aria-label="二维码链接" readonly></textarea></form></dialog>
 <div id="toast" role="status" aria-live="polite"></div><script src="app.js"></script></body></html>
