@@ -4,7 +4,7 @@ Windows 剪贴板磁力 / 电驴链接管理，以及电脑与手机的局域网
 
 ## 下载与运行
 
-在 [Releases](https://github.com/mrsai/clip-harbor/releases) 下载 `ClipHarbor-Setup-1.0.0.exe` 安装，或下载 Windows ZIP 解压运行 `ClipHarbor.exe`。适用于 Windows 10/11 x64。安装包目前未进行代码签名。
+在 [Releases](https://github.com/mrsai/clip-harbor/releases) 下载最新的 `ClipHarbor-Setup-<版本>.exe` 安装，或下载 Windows ZIP 解压运行 `ClipHarbor.exe`。适用于 Windows 10/11 x64。安装包目前未进行代码签名。
 
 ## 使用
 
